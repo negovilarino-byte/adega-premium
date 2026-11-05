@@ -74,7 +74,7 @@ function StoreApp(){
   }
   async function checkout(){
     if(!cart.length)return;
-    if(customerName.trim().length<2 || customerPhone.replace(/\\D/g,"").length<10){setNotice("Informe nome e telefone com DDD.");return;}
+    if(customerName.trim().length<2 || customerPhone.replace(/\D/g,"").length<10){setNotice("Informe nome e telefone com DDD.");return;}
     if(fulfillment==="Entrega" && deliveryAddress.trim().length<8){setNotice("Informe o endereço completo para entrega.");return;}
     // Abrir a janela durante o clique evita o bloqueio de pop-ups após o RPC assíncrono.
     const whatsappWindow=window.open("about:blank","_blank");
