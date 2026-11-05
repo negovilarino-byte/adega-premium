@@ -17,7 +17,16 @@ export default function App(){
   const [category,setCategory] = useState("Todas");
   const [products,setProducts] = useState(demoProducts);
   const [liveCatalog,setLiveCatalog] = useState(false);
-  useEffect(()=>{\n    if(!supabase)return;\n    let active=true;\n    supabase.from("products").select("id,name,description,volume,price,image_url,stock,categories(name)").eq("active",true).order("name").then(({data,error})=>{\n      if(!active||error||!data?.length)return;\n      const loaded=data.map(p=>({id:p.id,name:p.name,category:p.categories?.name||"Outros",detail:[p.description,p.volume].filter(Boolean).join(" • "),price:Number(p.price),tag:"",emoji:"🍾",image:p.image_url,stock:p.stock}));\n      setProducts(loaded);setLiveCatalog(true);\n    });\n    return ()=>{active=false};\n  },[]);
+  useEffect(()=>{
+    if(!supabase)return;
+    let active=true;
+    supabase.from("products").select("id,name,description,volume,price,image_url,stock,categories(name)").eq("active",true).order("name").then(({data,error})=>{
+      if(!active||error||!data?.length)return;
+      const loaded=data.map(p=>({id:p.id,name:p.name,category:p.categories?.name||"Outros",detail:[p.description,p.volume].filter(Boolean).join(" • "),price:Number(p.price),tag:"",emoji:"🍾",image:p.image_url,stock:p.stock}));
+      setProducts(loaded);setLiveCatalog(true);
+    });
+    return ()=>{active=false};
+  },[]);
   const [cart,setCart] = useState([]);
   const [cartOpen,setCartOpen] = useState(false);
   const [fulfillment,setFulfillment] = useState("Entrega");
@@ -34,8 +43,17 @@ export default function App(){
   function changeQty(id,delta){setCart(old=>old.map(i=>i.id===id?{...i,qty:i.qty+delta}:i).filter(i=>i.qty>0));}
   function checkout(){
     if(!cart.length)return;
-    const lines=cart.map(i=>`• ${i.qty}x ${i.name} — ${money(i.qty*i.price)}`).join("\n");
-    const message=`Olá! Quero fazer um pedido na Adega Império Sul.\n\n${lines}\n\nTotal estimado: ${money(total)}\nModalidade: ${fulfillment}\nPagamento desejado: PIX.\n\nConfirmar disponibilidade, taxa de entrega e chave PIX, por favor.`;
+    const lines=cart.map(i=>`• ${i.qty}x ${i.name} — ${money(i.qty*i.price)}`).join("
+");
+    const message=`Olá! Quero fazer um pedido na Adega Império Sul.
+
+${lines}
+
+Total estimado: ${money(total)}
+Modalidade: ${fulfillment}
+Pagamento desejado: PIX.
+
+Confirmar disponibilidade, taxa de entrega e chave PIX, por favor.`;
     window.open("https://wa.me/"+WHATSAPP_NUMBER+"?text="+encodeURIComponent(message),"_blank","noopener,noreferrer");
   }
   if(!ageOk)return <main className="age-screen"><div className="age-card"><div className="brand-mark">IS</div><p className="eyebrow">ADEGA IMPÉRIO SUL</p><h1>Uma experiência<br/><span>à sua altura.</span></h1><p>Este site comercializa bebidas alcoólicas. Você tem 18 anos ou mais?</p><button className="primary full" onClick={()=>{sessionStorage.setItem("adega18","yes");setAgeOk(true)}}>SIM, TENHO 18 ANOS OU MAIS</button><button className="text-button" onClick={()=>window.location.href="https://www.gov.br"}>Não tenho 18 anos</button><small>Beba com responsabilidade. Proibida a venda para menores de 18 anos.</small></div></main>;
