@@ -32,6 +32,9 @@ export default function App(){
   const [fulfillment,setFulfillment] = useState("Entrega");
   const [ageOk,setAgeOk] = useState(()=>sessionStorage.getItem("adega18")==="yes");
   const [notice,setNotice] = useState("");
+  const [customerName,setCustomerName] = useState("");
+  const [customerPhone,setCustomerPhone] = useState("");
+  const [deliveryAddress,setDeliveryAddress] = useState("");
   const visible = useMemo(()=>category==="Todas"?products:products.filter(p=>p.category===category),[category]);
   const count = cart.reduce((n,item)=>n+item.qty,0);
   const total = cart.reduce((n,item)=>n+item.qty*item.price,0);
@@ -41,19 +44,27 @@ export default function App(){
     setTimeout(()=>setNotice(""),2200);
   }
   function changeQty(id,delta){setCart(old=>old.map(i=>i.id===id?{...i,qty:i.qty+delta}:i).filter(i=>i.qty>0));}
-  function checkout(){
+  async function checkout(){
     if(!cart.length)return;
-    const lines=cart.map(i=>`• ${i.qty}x ${i.name} — ${money(i.qty*i.price)}`).join("\n");
-    const message=`Olá! Quero fazer um pedido na Adega Império Sul.
-
-${lines}
-
-Total estimado: ${money(total)}
-Modalidade: ${fulfillment}
-Pagamento desejado: PIX.
-
-Confirmar disponibilidade, taxa de entrega e chave PIX, por favor.`;
+    if(customerName.trim().length<2 || customerPhone.replace(/\D/g,"").length<10){setNotice("Informe nome e telefone com DDD.");return;}
+    if(fulfillment==="Entrega" && deliveryAddress.trim().length<8){setNotice("Informe o endereço completo para entrega.");return;}
+    let orderId=null;
+    if(liveCatalog && supabase){
+      const {data,error}=await supabase.rpc("create_guest_order",{
+        p_customer_name:customerName.trim(),
+        p_customer_phone:customerPhone,
+        p_delivery_method:fulfillment==="Entrega"?"delivery":"pickup",
+        p_delivery_address:fulfillment==="Entrega"?deliveryAddress.trim():null,
+        p_items:cart.map(item=>({product_id:item.id,quantity:item.qty})),
+        p_payment_method:"PIX"
+      });
+      if(error){setNotice("Não foi possível registrar o pedido: "+error.message);return;}
+      orderId=data;
+    }
+    const lines=cart.map(i=>`• ${i.qty}x ${i.name} — ${money(i.qty*i.price)}`).join("\\n");
+    const message=`Olá! Quero confirmar meu pedido na Adega Império Sul.\\n\\nPedido: ${orderId||"A confirmar"}\\nCliente: ${customerName.trim()}\\nTelefone: ${customerPhone}\\n${lines}\\n\\nTotal estimado: ${money(total)}\\nModalidade: ${fulfillment}\\n${fulfillment==="Entrega"?"Endereço: "+deliveryAddress:""}\\nPagamento desejado: PIX.\\n\\nPor favor, confirme disponibilidade, entrega e pagamento.`;
     window.open("https://wa.me/"+WHATSAPP_NUMBER+"?text="+encodeURIComponent(message),"_blank","noopener,noreferrer");
+    if(orderId){setCart([]);setCartOpen(false);setNotice("Pedido registrado no Supabase. Confira o WhatsApp.");}
   }
   if(!ageOk)return <main className="age-screen"><div className="age-card"><div className="brand-mark">IS</div><p className="eyebrow">ADEGA IMPÉRIO SUL</p><h1>Uma experiência<br/><span>à sua altura.</span></h1><p>Este site comercializa bebidas alcoólicas. Você tem 18 anos ou mais?</p><button className="primary full" onClick={()=>{sessionStorage.setItem("adega18","yes");setAgeOk(true)}}>SIM, TENHO 18 ANOS OU MAIS</button><button className="text-button" onClick={()=>window.location.href="https://www.gov.br"}>Não tenho 18 anos</button><small>Beba com responsabilidade. Proibida a venda para menores de 18 anos.</small></div></main>;
   return <div className="app-shell">
@@ -72,7 +83,7 @@ Confirmar disponibilidade, taxa de entrega e chave PIX, por favor.`;
     {notice&&<div className="toast">{notice}</div>}
     {cartOpen&&<div className="overlay" onClick={()=>setCartOpen(false)}><aside className="cart-panel" onClick={e=>e.stopPropagation()}><div className="cart-head"><div><p className="eyebrow">SEU PEDIDO</p><h2>Sacola ({count})</h2></div><button className="close" onClick={()=>setCartOpen(false)}>×</button></div>
       {!cart.length?<div className="empty">Sua sacola está vazia.<br/>Adicione produtos para começar.</div>:<><div className="cart-items">{cart.map(i=><div className="cart-item" key={i.id}><span className="mini-emoji">{i.emoji}</span><div className="cart-item-info"><b>{i.name}</b><small>{money(i.price)} cada</small><div className="qty"><button onClick={()=>changeQty(i.id,-1)}>−</button><span>{i.qty}</span><button onClick={()=>changeQty(i.id,1)}>+</button></div></div><strong>{money(i.qty*i.price)}</strong></div>)}</div>
-      <div className="fulfillment"><b>Como deseja receber?</b><div className="choice"><button className={fulfillment==="Entrega"?"selected":""} onClick={()=>setFulfillment("Entrega")}>Entrega</button><button className={fulfillment==="Retirada"?"selected":""} onClick={()=>setFulfillment("Retirada")}>Retirada</button></div></div><div className="total"><span>Total estimado</span><b>{money(total)}</b></div><button className="primary full" onClick={checkout}>CONTINUAR PELO WHATSAPP ↗</button><small className="checkout-note">PIX será confirmado diretamente com a loja. Valores, estoque e entrega sujeitos à confirmação.</small></>}
+      <div className="fulfillment"><b>Como deseja receber?</b><div className="choice"><button className={fulfillment==="Entrega"?"selected":""} onClick={()=>setFulfillment("Entrega")}>Entrega</button><button className={fulfillment==="Retirada"?"selected":""} onClick={()=>setFulfillment("Retirada")}>Retirada</button></div></div><div className="checkout-fields"><label>Seu nome<input value={customerName} onChange={e=>setCustomerName(e.target.value)} placeholder="Nome completo" autoComplete="name" /></label><label>Telefone com DDD<input value={customerPhone} onChange={e=>setCustomerPhone(e.target.value)} placeholder="(49) 99999-9999" inputMode="tel" autoComplete="tel" /></label>{fulfillment==="Entrega"&&<label>Endereço de entrega<textarea value={deliveryAddress} onChange={e=>setDeliveryAddress(e.target.value)} placeholder="Rua, número, bairro e cidade" /></label>}</div><div className="total"><span>Total estimado</span><b>{money(total)}</b></div><button className="primary full" onClick={checkout}>{liveCatalog?"REGISTRAR PEDIDO E CONTINUAR ↗":"CONTINUAR PELO WHATSAPP ↗"}</button><small className="checkout-note">PIX será confirmado diretamente com a loja. Valores, estoque e entrega sujeitos à confirmação.</small></>}
     </aside></div>}
   </div>;
 }
