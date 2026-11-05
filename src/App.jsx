@@ -61,8 +61,8 @@ export default function App(){
       if(error){setNotice("Não foi possível registrar o pedido: "+error.message);return;}
       orderId=data;
     }
-    const lines=cart.map(i=>`• ${i.qty}x ${i.name} — ${money(i.qty*i.price)}`).join("\\n");
-    const message=`Olá! Quero confirmar meu pedido na Adega Império Sul.\\n\\nPedido: ${orderId||"A confirmar"}\\nCliente: ${customerName.trim()}\\nTelefone: ${customerPhone}\\n${lines}\\n\\nTotal estimado: ${money(total)}\\nModalidade: ${fulfillment}\\n${fulfillment==="Entrega"?"Endereço: "+deliveryAddress:""}\\nPagamento desejado: PIX.\\n\\nPor favor, confirme disponibilidade, entrega e pagamento.`;
+    const lines=cart.map(i=>`• ${i.qty}x ${i.name} — ${money(i.qty*i.price)}`).join("\n");
+    const message=`Olá! Quero confirmar meu pedido na Adega Império Sul.\n\nPedido: ${orderId||"A confirmar"}\nCliente: ${customerName.trim()}\nTelefone: ${customerPhone}\n${lines}\n\nTotal estimado: ${money(total)}\nModalidade: ${fulfillment}\n${fulfillment==="Entrega"?"Endereço: "+deliveryAddress:""}\nPagamento desejado: PIX.\n\nPor favor, confirme disponibilidade, entrega e pagamento.`;
     window.open("https://wa.me/"+WHATSAPP_NUMBER+"?text="+encodeURIComponent(message),"_blank","noopener,noreferrer");
     if(orderId){setCart([]);setCartOpen(false);setNotice("Pedido registrado no Supabase. Confira o WhatsApp.");}
   }
