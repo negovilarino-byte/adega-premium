@@ -92,8 +92,8 @@ function StoreApp(){
         if(error){if(whatsappWindow)whatsappWindow.close();setNotice("Não foi possível registrar o pedido: "+error.message);return;}
         orderId=data;
       }
-      const lines=cart.map(i=>`• ${i.qty}x ${i.name} — ${money(i.qty*i.price)}`).join("\\n");
-      const message=`Olá! Quero confirmar meu pedido na Adega Império Sul.\\n\\nPedido: ${orderId||"A confirmar"}\\nCliente: ${customerName.trim()}\\nTelefone: ${customerPhone}\\n${lines}\\n\\nTotal estimado: ${money(total)}\\nModalidade: ${fulfillment}\\n${fulfillment==="Entrega"?"Endereço: "+deliveryAddress:""}\\nPagamento desejado: PIX.\\n\\nPor favor, confirme disponibilidade, entrega e pagamento.`;
+      const lines=cart.map(i=>`• ${i.qty}x ${i.name} — ${money(i.qty*i.price)}`).join("\n");
+      const message=`Olá! Quero confirmar meu pedido na Adega Império Sul.\n\nPedido: ${orderId||"A confirmar"}\nCliente: ${customerName.trim()}\nTelefone: ${customerPhone}\n${lines}\n\nTotal estimado: ${money(total)}\nModalidade: ${fulfillment}\n${fulfillment==="Entrega"?"Endereço: "+deliveryAddress:""}\nPagamento desejado: PIX.\n\nPor favor, confirme disponibilidade, entrega e pagamento.`;
       if(whatsappWindow)whatsappWindow.location.href="https://wa.me/"+WHATSAPP_NUMBER+"?text="+encodeURIComponent(message);
       if(orderId){setCart([]);setCartOpen(false);setNotice(whatsappWindow?"Pedido registrado no Supabase. Confira o WhatsApp.":"Pedido registrado, mas o navegador bloqueou a abertura do WhatsApp.");}
       else if(!whatsappWindow)setNotice("O navegador bloqueou a abertura do WhatsApp. Permita pop-ups e tente novamente.");
