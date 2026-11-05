@@ -125,6 +125,7 @@ function AdminPanel(){
   const [password,setPassword]=useState("");
   const [notice,setNotice]=useState("");
   const [busy,setBusy]=useState(false);
+  const [firstLoginNotice,setFirstLoginNotice]=useState(false);
   const [tab,setTab]=useState("products");
   const [products,setProducts]=useState([]);
   const [categories,setCategories]=useState([]);
@@ -149,7 +150,18 @@ function AdminPanel(){
   useEffect(()=>{
     if(!supabase){setChecking(false);return;}
     supabase.auth.getSession().then(({data})=>verifyUser(data.session));
-    const {data:{subscription}}=supabase.auth.onAuthStateChange((_event,currentSession)=>{verifyUser(currentSession);});
+    const {data:{subscription}}=supabase.auth.onAuthStateChange((event,currentSession)=>{
+      // Evita consultas Supabase dentro do callback síncrono do Auth.
+      window.setTimeout(()=>{
+        verifyUser(currentSession);
+        if(event==="SIGNED_IN" && currentSession?.user){
+          supabase.rpc("register_first_login").then(({data,error})=>{
+            if(error){setNotice("Login realizado, mas não foi possível registrar o primeiro acesso: "+error.message);return;}
+            if(data===true)setFirstLoginNotice(true);
+          });
+        }
+      },0);
+    });
     return ()=>subscription.unsubscribe();
   },[]);
   async function loadData(){
@@ -246,6 +258,7 @@ function AdminPanel(){
   </form></main>;
   if(!isAdmin)return <main className="admin-screen"><section className="admin-card">
     <a className="admin-back" href={import.meta.env.BASE_URL}>← Voltar à loja</a><div className="brand-mark">IS</div><h1>Acesso ainda não autorizado</h1>
+    {firstLoginNotice&&<p className="admin-notice" role="status">Entrei — primeiro acesso registrado com sucesso.</p>}
     <p className="admin-muted">A conta {session.user.email} está autenticada, mas ainda não possui a função de administrador. Por segurança, somente o responsável pelo projeto pode conceder essa permissão.</p>
     {notice&&<p className="admin-notice">{notice}</p>}<button className="admin-secondary" onClick={signOut}>SAIR</button>
   </section></main>;
@@ -253,6 +266,7 @@ function AdminPanel(){
     <header className="admin-header"><a className="brand" href={import.meta.env.BASE_URL}><span className="brand-mark small">IS</span><span>ADEGA <b>IMPÉRIO SUL</b></span></a><div><span>{session.user.email}</span><button className="admin-secondary" onClick={signOut}>Sair</button></div></header>
     <section className="admin-content"><div className="admin-title"><div><p className="eyebrow">GESTÃO DA LOJA</p><h1>Painel administrativo</h1></div><button className="admin-secondary" onClick={loadData}>Atualizar</button></div>
     <nav className="admin-tabs"><button className={tab==="products"?"active":""} onClick={()=>setTab("products")}>Produtos ({products.length})</button><button className={tab==="categories"?"active":""} onClick={()=>setTab("categories")}>Categorias ({categories.length})</button><button className={tab==="orders"?"active":""} onClick={()=>setTab("orders")}>Pedidos ({orders.length})</button></nav>
+    {firstLoginNotice&&<p className="admin-notice" role="status">Entrei — primeiro acesso registrado com sucesso.</p>}
     {notice&&<p className="admin-notice">{notice}</p>}
     {tab==="products"&&<><form className="admin-form" onSubmit={saveProduct}><h2>{editingId?"Editar produto":"Cadastrar produto"}</h2>
       <label>Nome do produto<input required value={name} onChange={e=>setName(e.target.value)} placeholder="Ex.: Cerveja Puro Malte"/></label>
