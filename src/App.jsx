@@ -16,17 +16,28 @@ const WHATSAPP_NUMBER = "5549999084921";
 function StoreApp(){
   const [category,setCategory] = useState("Todas");
   const [products,setProducts] = useState(supabase ? [] : (import.meta.env.DEV ? demoProducts : []));
+  const [categoryOptions,setCategoryOptions] = useState(categories);
   const [liveCatalog,setLiveCatalog] = useState(Boolean(supabase));
   const [catalogLoading,setCatalogLoading] = useState(Boolean(supabase));
   useEffect(()=>{
     if(!supabase)return;
     let active=true;
-    supabase.from("products").select("id,name,description,volume,price,image_url,stock,categories(name)").eq("active",true).order("name").then(({data,error})=>{
+    Promise.all([
+      supabase.from("products").select("id,name,description,volume,price,image_url,stock,categories(name)").eq("active",true).order("name"),
+      supabase.from("categories").select("name").eq("active",true).order("name")
+    ]).then(([productsResult,categoriesResult])=>{
       if(!active)return;
       setCatalogLoading(false);
-      if(error){setProducts([]);setNotice("Não foi possível carregar o catálogo. Tente novamente mais tarde.");return;}
-      const loaded=(data||[]).map(p=>({id:p.id,name:p.name,category:p.categories?.name||"Outros",detail:[p.description,p.volume].filter(Boolean).join(" • "),price:Number(p.price),tag:"",emoji:"🍾",image:p.image_url,stock:p.stock}));
-      setProducts(loaded);setLiveCatalog(true);
+      if(productsResult.error){setProducts([]);setNotice("Não foi possível carregar o catálogo. Tente novamente mais tarde.");return;}
+      const loaded=(productsResult.data||[]).map(p=>({id:p.id,name:p.name,category:p.categories?.name||"Outros",detail:[p.description,p.volume].filter(Boolean).join(" • "),price:Number(p.price),tag:"",emoji:"🍾",image:p.image_url,stock:p.stock}));
+      setProducts(loaded);
+      if(!categoriesResult.error)setCategoryOptions(["Todas",...(categoriesResult.data||[]).map(item=>item.name)]);
+      setLiveCatalog(true);
+    }).catch(()=>{
+      if(!active)return;
+      setCatalogLoading(false);
+      setProducts([]);
+      setNotice("Falha de conexão ao carregar o catálogo. Tente novamente.");
     });
     return ()=>{active=false};
   },[]);
@@ -76,7 +87,7 @@ function StoreApp(){
       <section className="hero"><div className="hero-copy"><p className="eyebrow">SEU BRINDE COMEÇA AQUI</p><h1>Qualidade que<br/><span>faz a diferença.</span></h1><p>Bebidas selecionadas, ofertas especiais e praticidade para o seu momento.</p><a className="primary" href="#catalogo">EXPLORAR PRODUTOS <span>↗</span></a></div><div className="mascot" aria-label="Espaço reservado para o mascote oficial bulldog"><span>🐶</span><small>MASCOTE OFICIAL<br/>BULLDOG</small></div><div className="hero-stamp">SELEÇÃO<br/><b>IMPÉRIO SUL</b></div></section>
       <section className="benefits"><div>✦ <span>Seleção especial</span></div><div>⌁ <span>Entrega ou retirada</span></div><div>◈ <span>Pedido fácil pelo WhatsApp</span></div></section>
       <section className="section" id="catalogo"><div className="section-heading"><div><p className="eyebrow">ESCOLHA O SEU</p><h2>Nossas categorias</h2></div><span className="muted">{catalogLoading?"Carregando catálogo":liveCatalog?"Catálogo conectado":import.meta.env.DEV?"Modo de demonstração":"Catálogo indisponível"}</span></div>
-        <div className="category-list">{categories.map(c=><button key={c} className={category===c?"category active":"category"} onClick={()=>setCategory(c)}>{c}</button>)}</div>
+        <div className="category-list">{categoryOptions.map(c=><button key={c} className={category===c?"category active":"category"} onClick={()=>setCategory(c)}>{c}</button>)}</div>
         <div className="product-grid">{catalogLoading?<div className="empty">Carregando produtos...</div>:visible.length===0?<div className="empty">{liveCatalog?"Nenhum produto cadastrado no momento. Volte em breve.":"O catálogo ainda não está conectado."}</div>:visible.map(p=><article className="product-card" key={p.id}><div className="product-art">{p.image?<img src={p.image} alt={p.name}/>:<span>{p.emoji}</span>}{p.tag&&<b>{p.tag}</b>}</div><div className="product-info"><small>{p.category}</small><h3>{p.name}</h3><p>{p.detail}</p><div className="product-bottom"><strong>{money(p.price)}</strong><button aria-label={"Adicionar "+p.name} onClick={()=>add(p)} disabled={liveCatalog && p.stock<=0}>{liveCatalog && p.stock<=0?"Esgotado":"+"}</button></div></div></article>)}</div>
       </section>
       <section className="offer"><div><p className="eyebrow">VANTAGENS ESPECIAIS</p><h2>Ofertas para<br/>bons momentos.</h2><p>Consulte as promoções disponíveis e monte seu pedido.</p></div><div className="offer-art">★<span>OFERTAS</span></div></section>
@@ -165,6 +176,12 @@ function AdminPanel(){
     setBusy(true);setNotice("");
     let imageUrl=editingId?products.find(p=>p.id===editingId)?.image_url||null:null;
     if(imageFile){
+      const allowedTypes=["image/jpeg","image/png","image/webp"];
+      if(!allowedTypes.includes(imageFile.type)||imageFile.size>5*1024*1024){
+        setNotice("Envie uma imagem JPG, PNG ou WEBP de até 5 MB.");
+        setBusy(false);
+        return;
+      }
       const ext=(imageFile.name.split(".").pop()||"jpg").toLowerCase();
       const path=(window.crypto?.randomUUID?.()||String(Date.now()))+"."+ext;
       const {error:uploadError}=await supabase.storage.from("product-images").upload(path,imageFile,{contentType:imageFile.type,upsert:false});
