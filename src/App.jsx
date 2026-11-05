@@ -74,25 +74,33 @@ function StoreApp(){
   }
   async function checkout(){
     if(!cart.length)return;
-    if(customerName.trim().length<2 || customerPhone.replace(/\D/g,"").length<10){setNotice("Informe nome e telefone com DDD.");return;}
+    if(customerName.trim().length<2 || customerPhone.replace(/\\D/g,"").length<10){setNotice("Informe nome e telefone com DDD.");return;}
     if(fulfillment==="Entrega" && deliveryAddress.trim().length<8){setNotice("Informe o endereço completo para entrega.");return;}
-    let orderId=null;
-    if(liveCatalog && supabase){
-      const {data,error}=await supabase.rpc("create_guest_order",{
-        p_customer_name:customerName.trim(),
-        p_customer_phone:customerPhone,
-        p_delivery_method:fulfillment==="Entrega"?"delivery":"pickup",
-        p_delivery_address:fulfillment==="Entrega"?deliveryAddress.trim():null,
-        p_items:cart.map(item=>({product_id:item.id,quantity:item.qty})),
-        p_payment_method:"PIX"
-      });
-      if(error){setNotice("Não foi possível registrar o pedido: "+error.message);return;}
-      orderId=data;
+    // Abrir a janela durante o clique evita o bloqueio de pop-ups após o RPC assíncrono.
+    const whatsappWindow=window.open("about:blank","_blank");
+    try{
+      let orderId=null;
+      if(liveCatalog && supabase){
+        const {data,error}=await supabase.rpc("create_guest_order",{
+          p_customer_name:customerName.trim(),
+          p_customer_phone:customerPhone,
+          p_delivery_method:fulfillment==="Entrega"?"delivery":"pickup",
+          p_delivery_address:fulfillment==="Entrega"?deliveryAddress.trim():null,
+          p_items:cart.map(item=>({product_id:item.id,quantity:item.qty})),
+          p_payment_method:"PIX"
+        });
+        if(error){if(whatsappWindow)whatsappWindow.close();setNotice("Não foi possível registrar o pedido: "+error.message);return;}
+        orderId=data;
+      }
+      const lines=cart.map(i=>`• ${i.qty}x ${i.name} — ${money(i.qty*i.price)}`).join("\\n");
+      const message=`Olá! Quero confirmar meu pedido na Adega Império Sul.\\n\\nPedido: ${orderId||"A confirmar"}\\nCliente: ${customerName.trim()}\\nTelefone: ${customerPhone}\\n${lines}\\n\\nTotal estimado: ${money(total)}\\nModalidade: ${fulfillment}\\n${fulfillment==="Entrega"?"Endereço: "+deliveryAddress:""}\\nPagamento desejado: PIX.\\n\\nPor favor, confirme disponibilidade, entrega e pagamento.`;
+      if(whatsappWindow)whatsappWindow.location.href="https://wa.me/"+WHATSAPP_NUMBER+"?text="+encodeURIComponent(message);
+      if(orderId){setCart([]);setCartOpen(false);setNotice(whatsappWindow?"Pedido registrado no Supabase. Confira o WhatsApp.":"Pedido registrado, mas o navegador bloqueou a abertura do WhatsApp.");}
+      else if(!whatsappWindow)setNotice("O navegador bloqueou a abertura do WhatsApp. Permita pop-ups e tente novamente.");
+    }catch(error){
+      if(whatsappWindow)whatsappWindow.close();
+      setNotice("Falha ao finalizar o pedido. Verifique sua conexão e tente novamente.");
     }
-    const lines=cart.map(i=>`• ${i.qty}x ${i.name} — ${money(i.qty*i.price)}`).join("\n");
-    const message=`Olá! Quero confirmar meu pedido na Adega Império Sul.\n\nPedido: ${orderId||"A confirmar"}\nCliente: ${customerName.trim()}\nTelefone: ${customerPhone}\n${lines}\n\nTotal estimado: ${money(total)}\nModalidade: ${fulfillment}\n${fulfillment==="Entrega"?"Endereço: "+deliveryAddress:""}\nPagamento desejado: PIX.\n\nPor favor, confirme disponibilidade, entrega e pagamento.`;
-    window.open("https://wa.me/"+WHATSAPP_NUMBER+"?text="+encodeURIComponent(message),"_blank","noopener,noreferrer");
-    if(orderId){setCart([]);setCartOpen(false);setNotice("Pedido registrado no Supabase. Confira o WhatsApp.");}
   }
   if(!ageOk)return <main className="age-screen"><div className="age-card"><div className="brand-mark">IS</div><p className="eyebrow">ADEGA IMPÉRIO SUL</p><h1>Uma experiência<br/><span>à sua altura.</span></h1><p>Este site comercializa bebidas alcoólicas. Você tem 18 anos ou mais?</p><button className="primary full" onClick={()=>{sessionStorage.setItem("adega18","yes");setAgeOk(true)}}>SIM, TENHO 18 ANOS OU MAIS</button><button className="text-button" onClick={()=>window.location.href="https://www.gov.br"}>Não tenho 18 anos</button><small>Beba com responsabilidade. Proibida a venda para menores de 18 anos.</small></div></main>;
   return <div className="app-shell">
