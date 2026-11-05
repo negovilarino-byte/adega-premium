@@ -247,8 +247,8 @@ end;
 $function$;
 
 -- A implementação não pode ser chamada diretamente por roles da API.
-revoke all on function private.create_guest_order(text, text, text, text, jsonb, text) from public, anon, authenticated;
-revoke usage on schema private from public, anon, authenticated;
+grant usage on schema private to anon, authenticated;
+grant execute on function private.create_guest_order(text, text, text, text, jsonb, text) to anon, authenticated;
 
 -- Entrada RPC necessária para o checkout de visitantes.
 create or replace function public.create_guest_order(
@@ -261,7 +261,7 @@ create or replace function public.create_guest_order(
 )
 returns uuid
 language sql
-security definer
+security invoker
 set search_path = ''
 as $function$
   select private.create_guest_order(
