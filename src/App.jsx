@@ -15,14 +15,17 @@ const WHATSAPP_NUMBER = "5549999084921";
 
 export default function App(){
   const [category,setCategory] = useState("Todas");
-  const [products,setProducts] = useState(demoProducts);
-  const [liveCatalog,setLiveCatalog] = useState(false);
+  const [products,setProducts] = useState(supabase ? [] : (import.meta.env.DEV ? demoProducts : []));
+  const [liveCatalog,setLiveCatalog] = useState(Boolean(supabase));
+  const [catalogLoading,setCatalogLoading] = useState(Boolean(supabase));
   useEffect(()=>{
     if(!supabase)return;
     let active=true;
     supabase.from("products").select("id,name,description,volume,price,image_url,stock,categories(name)").eq("active",true).order("name").then(({data,error})=>{
-      if(!active||error||!data?.length)return;
-      const loaded=data.map(p=>({id:p.id,name:p.name,category:p.categories?.name||"Outros",detail:[p.description,p.volume].filter(Boolean).join(" • "),price:Number(p.price),tag:"",emoji:"🍾",image:p.image_url,stock:p.stock}));
+      if(!active)return;
+      setCatalogLoading(false);
+      if(error){setProducts([]);setNotice("Não foi possível carregar o catálogo. Tente novamente mais tarde.");return;}
+      const loaded=(data||[]).map(p=>({id:p.id,name:p.name,category:p.categories?.name||"Outros",detail:[p.description,p.volume].filter(Boolean).join(" • "),price:Number(p.price),tag:"",emoji:"🍾",image:p.image_url,stock:p.stock}));
       setProducts(loaded);setLiveCatalog(true);
     });
     return ()=>{active=false};
@@ -72,9 +75,9 @@ export default function App(){
     <main>
       <section className="hero"><div className="hero-copy"><p className="eyebrow">SEU BRINDE COMEÇA AQUI</p><h1>Qualidade que<br/><span>faz a diferença.</span></h1><p>Bebidas selecionadas, ofertas especiais e praticidade para o seu momento.</p><a className="primary" href="#catalogo">EXPLORAR PRODUTOS <span>↗</span></a></div><div className="mascot" aria-label="Espaço reservado para o mascote oficial bulldog"><span>🐶</span><small>MASCOTE OFICIAL<br/>BULLDOG</small></div><div className="hero-stamp">SELEÇÃO<br/><b>IMPÉRIO SUL</b></div></section>
       <section className="benefits"><div>✦ <span>Seleção especial</span></div><div>⌁ <span>Entrega ou retirada</span></div><div>◈ <span>Pedido fácil pelo WhatsApp</span></div></section>
-      <section className="section" id="catalogo"><div className="section-heading"><div><p className="eyebrow">ESCOLHA O SEU</p><h2>Nossas categorias</h2></div><span className="muted">{liveCatalog?"Catálogo conectado":"Produtos demonstrativos"}</span></div>
+      <section className="section" id="catalogo"><div className="section-heading"><div><p className="eyebrow">ESCOLHA O SEU</p><h2>Nossas categorias</h2></div><span className="muted">{catalogLoading?"Carregando catálogo":liveCatalog?"Catálogo conectado":import.meta.env.DEV?"Modo de demonstração":"Catálogo indisponível"}</span></div>
         <div className="category-list">{categories.map(c=><button key={c} className={category===c?"category active":"category"} onClick={()=>setCategory(c)}>{c}</button>)}</div>
-        <div className="product-grid">{visible.map(p=><article className="product-card" key={p.id}><div className="product-art"><span>{p.emoji}</span>{p.tag&&<b>{p.tag}</b>}</div><div className="product-info"><small>{p.category}</small><h3>{p.name}</h3><p>{p.detail}</p><div className="product-bottom"><strong>{money(p.price)}</strong><button aria-label={"Adicionar "+p.name} onClick={()=>add(p)}>+</button></div></div></article>)}</div>
+        <div className="product-grid">{catalogLoading?<div className="empty">Carregando produtos...</div>:visible.length===0?<div className="empty">{liveCatalog?"Nenhum produto cadastrado no momento. Volte em breve.":"O catálogo ainda não está conectado."}</div>:visible.map(p=><article className="product-card" key={p.id}><div className="product-art">{p.image?<img src={p.image} alt={p.name}/>:<span>{p.emoji}</span>}{p.tag&&<b>{p.tag}</b>}</div><div className="product-info"><small>{p.category}</small><h3>{p.name}</h3><p>{p.detail}</p><div className="product-bottom"><strong>{money(p.price)}</strong><button aria-label={"Adicionar "+p.name} onClick={()=>add(p)} disabled={liveCatalog && p.stock<=0}>{liveCatalog && p.stock<=0?"Esgotado":"+"}</button></div></div></article>)}</div>
       </section>
       <section className="offer"><div><p className="eyebrow">VANTAGENS ESPECIAIS</p><h2>Ofertas para<br/>bons momentos.</h2><p>Consulte as promoções disponíveis e monte seu pedido.</p></div><div className="offer-art">★<span>OFERTAS</span></div></section>
       <section className="order-strip"><div><p className="eyebrow">DO SEU JEITO</p><h2>Receba ou retire.</h2><p>Escolha a modalidade no carrinho e confirme os detalhes pelo WhatsApp.</p></div><button className="primary" onClick={()=>setCartOpen(true)}>VER MINHA SACOLA</button></section>
