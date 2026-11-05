@@ -49,7 +49,7 @@ function StoreApp(){
   const [customerName,setCustomerName] = useState("");
   const [customerPhone,setCustomerPhone] = useState("");
   const [deliveryAddress,setDeliveryAddress] = useState("");
-  const visible = useMemo(()=>category==="Todas"?products:products.filter(p=>p.category===category),[category]);
+  const visible = useMemo(()=>category==="Todas"?products:products.filter(p=>p.category===category),[category,products]);
   const count = cart.reduce((n,item)=>n+item.qty,0);
   const total = cart.reduce((n,item)=>n+item.qty*item.price,0);
   function add(product){
