@@ -226,6 +226,7 @@ function AdminPanel(){
 }
 
 export default function App(){
-  const isAdmin=window.location.pathname.replace(/\\/$/,"").endsWith("/admin");
+  const path=window.location.pathname;
+  const isAdmin=path.endsWith("/admin")||path.endsWith("/admin/");
   return isAdmin?<AdminPanel/>:<StoreApp/>;
 }
