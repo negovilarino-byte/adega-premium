@@ -41,3 +41,10 @@
 .admin-category{justify-content:space-between;color:#eee;font-size:12px}
 .product-art img{width:100%;height:100%;object-fit:contain;padding:12px}
 @media(max-width:650px){.admin-card{padding:26px 20px}.admin-content{width:94%;margin-top:24px}.admin-title h1{font-size:29px}.admin-fields{grid-template-columns:1fr 1fr}.admin-header{padding:12px 4%;align-items:flex-start;flex-direction:column}.admin-header>div{width:100%;justify-content:space-between}.admin-product{flex-wrap:wrap}.admin-product>div{min-width:calc(100% - 75px)}.admin-order{align-items:flex-start;flex-direction:column}.admin-order select{width:100%;max-width:none}.admin-inline{align-items:stretch;flex-direction:column}.admin-inline button{width:100%}}
+
+
+.google-signin{width:100%;display:flex;align-items:center;justify-content:center;gap:12px;padding:13px 16px;margin:20px 0 8px;background:#fff;color:#202124;border:1px solid #dadce0;border-radius:4px;font-size:11px;font-weight:800;letter-spacing:.4px}
+.google-signin:hover{background:#f7f7f7}
+.google-g{font:800 19px Arial,sans-serif;color:#4285f4}
+.admin-or{display:flex;align-items:center;gap:12px;color:#8e8780;font-size:10px;margin:12px 0}
+.admin-or:before,.admin-or:after{content:"";height:1px;background:#ffffff20;flex:1}
