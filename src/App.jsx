@@ -10,6 +10,7 @@ const products = [
   {id:6,name:"Vodka Especial",category:"Vodka",detail:"Garrafa • 750 ml",price:79.9,tag:"Novidade",emoji:"🍸"}
 ];
 const money = value => value.toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
+const WHATSAPP_NUMBER = "554999084921";
 
 export default function App(){
   const [category,setCategory] = useState("Todas");
@@ -31,7 +32,7 @@ export default function App(){
     if(!cart.length)return;
     const lines=cart.map(i=>`• ${i.qty}x ${i.name} — ${money(i.qty*i.price)}`).join("\n");
     const message=`Olá! Quero fazer um pedido na Adega Premium.\n\n${lines}\n\nTotal estimado: ${money(total)}\nModalidade: ${fulfillment}\nPagamento desejado: PIX.\n\nConfirmar disponibilidade, taxa de entrega e chave PIX, por favor.`;
-    window.open("https://wa.me/?text="+encodeURIComponent(message),"_blank","noopener,noreferrer");
+    window.open("https://wa.me/"+WHATSAPP_NUMBER+"?text="+encodeURIComponent(message),"_blank","noopener,noreferrer");
   }
   if(!ageOk)return <main className="age-screen"><div className="age-card"><div className="brand-mark">AP</div><p className="eyebrow">ADEGA PREMIUM</p><h1>Uma experiência<br/><span>à sua altura.</span></h1><p>Este site comercializa bebidas alcoólicas. Você tem 18 anos ou mais?</p><button className="primary full" onClick={()=>{sessionStorage.setItem("adega18","yes");setAgeOk(true)}}>SIM, TENHO 18 ANOS OU MAIS</button><button className="text-button" onClick={()=>window.location.href="https://www.gov.br"}>Não tenho 18 anos</button><small>Beba com responsabilidade. Proibida a venda para menores de 18 anos.</small></div></main>;
   return <div className="app-shell">
@@ -46,7 +47,7 @@ export default function App(){
       <section className="offer"><div><p className="eyebrow">VANTAGENS ESPECIAIS</p><h2>Ofertas para<br/>bons momentos.</h2><p>Consulte as promoções disponíveis e monte seu pedido.</p></div><div className="offer-art">★<span>OFERTAS</span></div></section>
       <section className="order-strip"><div><p className="eyebrow">DO SEU JEITO</p><h2>Receba ou retire.</h2><p>Escolha a modalidade no carrinho e confirme os detalhes pelo WhatsApp.</p></div><button className="primary" onClick={()=>setCartOpen(true)}>VER MINHA SACOLA</button></section>
     </main>
-    <footer><a className="brand" href="#"><span className="brand-mark small">AP</span><span>ADEGA <b>PREMIUM</b></span></a><p>Venda proibida para menores de 18 anos. Beba com responsabilidade.</p><small>© {new Date().getFullYear()} Adega Premium</small></footer>
+    <footer><a className="brand" href="#"><span className="brand-mark small">AP</span><span>ADEGA <b>PREMIUM</b></span></a><p>Venda proibida para menores de 18 anos. Beba com responsabilidade.</p><a className="text-button" href={"https://wa.me/"+WHATSAPP_NUMBER} target="_blank" rel="noreferrer">Fale com a Adega pelo WhatsApp ↗</a><small>© {new Date().getFullYear()} Adega Premium</small></footer>
     {notice&&<div className="toast">{notice}</div>}
     {cartOpen&&<div className="overlay" onClick={()=>setCartOpen(false)}><aside className="cart-panel" onClick={e=>e.stopPropagation()}><div className="cart-head"><div><p className="eyebrow">SEU PEDIDO</p><h2>Sacola ({count})</h2></div><button className="close" onClick={()=>setCartOpen(false)}>×</button></div>
       {!cart.length?<div className="empty">Sua sacola está vazia.<br/>Adicione produtos para começar.</div>:<><div className="cart-items">{cart.map(i=><div className="cart-item" key={i.id}><span className="mini-emoji">{i.emoji}</span><div className="cart-item-info"><b>{i.name}</b><small>{money(i.price)} cada</small><div className="qty"><button onClick={()=>changeQty(i.id,-1)}>−</button><span>{i.qty}</span><button onClick={()=>changeQty(i.id,1)}>+</button></div></div><strong>{money(i.qty*i.price)}</strong></div>)}</div>
