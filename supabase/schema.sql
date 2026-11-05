@@ -137,3 +137,99 @@ drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure public.handle_new_user();
+
+
+-- Checkout público como visitante. O banco calcula preços e valida estoque.
+create or replace function public.create_guest_order(
+  p_customer_name text,
+  p_customer_phone text,
+  p_delivery_method text,
+  p_delivery_address text,
+  p_items jsonb,
+  p_payment_method text default 'PIX'
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_order_id uuid;
+  v_item record;
+  v_product public.products%rowtype;
+  v_subtotal numeric(10,2) := 0;
+  v_phone text;
+begin
+  if coalesce(length(trim(p_customer_name)), 0) < 2 then
+    raise exception 'Informe o nome do cliente.';
+  end if;
+
+  v_phone := regexp_replace(coalesce(p_customer_phone, ''), '\\D', '', 'g');
+  if length(v_phone) < 10 or length(v_phone) > 13 then
+    raise exception 'Informe um telefone válido com DDD.';
+  end if;
+
+  if p_delivery_method not in ('delivery', 'pickup') then
+    raise exception 'Modalidade de entrega inválida.';
+  end if;
+  if p_delivery_method = 'delivery' and coalesce(length(trim(p_delivery_address)), 0) < 8 then
+    raise exception 'Informe o endereço completo para entrega.';
+  end if;
+  if jsonb_typeof(p_items) <> 'array' or jsonb_array_length(p_items) = 0 then
+    raise exception 'O carrinho está vazio.';
+  end if;
+  if jsonb_array_length(p_items) > 50 then
+    raise exception 'Quantidade de itens inválida.';
+  end if;
+
+  insert into public.orders (
+    customer_name, customer_phone, delivery_method, delivery_address,
+    payment_method, status, subtotal
+  ) values (
+    trim(p_customer_name), v_phone, p_delivery_method,
+    case when p_delivery_method = 'delivery' then trim(p_delivery_address) else null end,
+    coalesce(nullif(trim(p_payment_method), ''), 'PIX'), 'pending', 0
+  ) returning id into v_order_id;
+
+  for v_item in
+    select product_id, quantity
+    from jsonb_to_recordset(p_items) as x(product_id uuid, quantity integer)
+  loop
+    if v_item.quantity is null or v_item.quantity < 1 or v_item.quantity > 99 then
+      raise exception 'Quantidade inválida.';
+    end if;
+
+    select * into v_product
+    from public.products
+    where id = v_item.product_id and active = true
+    for update;
+
+    if not found then
+      raise exception 'Um produto não está mais disponível.';
+    end if;
+    if v_product.stock < v_item.quantity then
+      raise exception 'Estoque insuficiente para: %.', v_product.name;
+    end if;
+
+    update public.products
+    set stock = stock - v_item.quantity, updated_at = now()
+    where id = v_product.id;
+
+    insert into public.order_items (
+      order_id, product_id, product_name, quantity, unit_price
+    ) values (
+      v_order_id, v_product.id, v_product.name, v_item.quantity, v_product.price
+    );
+
+    v_subtotal := v_subtotal + (v_product.price * v_item.quantity);
+  end loop;
+
+  update public.orders set subtotal = v_subtotal, updated_at = now()
+  where id = v_order_id;
+
+  return v_order_id;
+end;
+$$;
+
+revoke all on function public.create_guest_order(text, text, text, text, jsonb, text) from public;
+grant execute on function public.create_guest_order(text, text, text, text, jsonb, text) to anon, authenticated;
