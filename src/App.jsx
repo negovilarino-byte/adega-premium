@@ -149,6 +149,16 @@ function AdminPanel(){
     setProducts(p.data||[]);setCategories(c.data||[]);setOrders(o.data||[]);
   }
   useEffect(()=>{loadData();},[isAdmin]);
+  async function signInWithGoogle(){
+    if(!supabase)return;
+    setBusy(true);setNotice("");
+    const redirectTo=window.location.origin+import.meta.env.BASE_URL+"admin/";
+    const {error}=await supabase.auth.signInWithOAuth({
+      provider:"google",
+      options:{redirectTo,queryParams:{prompt:"select_account"}}
+    });
+    if(error){setNotice("Não foi possível iniciar o acesso Google: "+error.message);setBusy(false);}
+  }
   async function signIn(e){
     e.preventDefault();if(!supabase)return;setBusy(true);setNotice("");
     const {data,error}=await supabase.auth.signInWithPassword({email:email.trim(),password});
@@ -212,6 +222,8 @@ function AdminPanel(){
   if(!session)return <main className="admin-screen"><form className="admin-card" onSubmit={signIn}>
     <a className="admin-back" href={import.meta.env.BASE_URL}>← Voltar à loja</a><div className="brand-mark">IS</div><p className="eyebrow">ADEGA IMPÉRIO SUL</p><h1>Painel administrativo</h1>
     <p className="admin-muted">Entre com sua conta para gerenciar o catálogo e os pedidos.</p>
+    <button type="button" className="google-signin" disabled={busy} onClick={signInWithGoogle}><span className="google-g" aria-hidden="true">G</span> CONTINUAR COM GOOGLE</button>
+    <div className="admin-or"><span>ou entre com e-mail</span></div>
     <label>E-mail<input type="email" required value={email} onChange={e=>setEmail(e.target.value)} placeholder="seu@email.com"/></label>
     <label>Senha<input type="password" required minLength="6" value={password} onChange={e=>setPassword(e.target.value)} placeholder="Sua senha"/></label>
     <button className="primary full" disabled={busy}>{busy?"Aguarde...":"ENTRAR"}</button>
