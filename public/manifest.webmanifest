@@ -1,0 +1,9 @@
+{
+  "name": "Adega Premium",
+  "short_name": "Adega",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#101010",
+  "theme_color": "#111111",
+  "description": "Bebidas, ofertas e conveniência."
+}
