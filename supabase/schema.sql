@@ -139,8 +139,12 @@ create trigger on_auth_user_created
   for each row execute procedure public.handle_new_user();
 
 
--- Checkout público como visitante. O banco calcula preços e valida estoque.
-create or replace function public.create_guest_order(
+-- Checkout público como visitante.
+-- A implementação privilegiada fica em schema privado, fora da API REST.
+-- A função pública é a única entrada RPC e valida os dados antes de gravar.
+create schema if not exists private;
+
+create or replace function private.create_guest_order(
   p_customer_name text,
   p_customer_phone text,
   p_delivery_method text,
@@ -151,8 +155,8 @@ create or replace function public.create_guest_order(
 returns uuid
 language plpgsql
 security definer
-set search_path = public, pg_temp
-as $$
+set search_path = ''
+as $function$
 declare
   v_order_id uuid;
   v_item record;
@@ -160,43 +164,54 @@ declare
   v_subtotal numeric(10,2) := 0;
   v_phone text;
 begin
-  if coalesce(length(trim(p_customer_name)), 0) < 2 then
-    raise exception 'Informe o nome do cliente.';
+  if coalesce(pg_catalog.length(pg_catalog.btrim(p_customer_name)), 0) < 2
+     or pg_catalog.length(pg_catalog.btrim(p_customer_name)) > 120 then
+    raise exception 'Nome inválido.';
   end if;
 
-  v_phone := regexp_replace(coalesce(p_customer_phone, ''), '[^0-9]', '', 'g');
-  if length(v_phone) < 10 or length(v_phone) > 13 then
+  v_phone := pg_catalog.regexp_replace(coalesce(p_customer_phone, ''), '[^0-9]', '', 'g');
+  if pg_catalog.length(v_phone) < 10 or pg_catalog.length(v_phone) > 13 then
     raise exception 'Informe um telefone válido com DDD.';
   end if;
 
   if p_delivery_method not in ('delivery', 'pickup') then
     raise exception 'Modalidade de entrega inválida.';
   end if;
-  if p_delivery_method = 'delivery' and coalesce(length(trim(p_delivery_address)), 0) < 8 then
-    raise exception 'Informe o endereço completo para entrega.';
+  if p_delivery_method = 'delivery'
+     and (coalesce(pg_catalog.length(pg_catalog.btrim(p_delivery_address)), 0) < 8
+          or pg_catalog.length(pg_catalog.btrim(p_delivery_address)) > 500) then
+    raise exception 'Informe um endereço válido para entrega.';
   end if;
-  if jsonb_typeof(p_items) <> 'array' or jsonb_array_length(p_items) = 0 then
-    raise exception 'O carrinho está vazio.';
+  if p_delivery_method = 'pickup' then
+    p_delivery_address := null;
   end if;
-  if jsonb_array_length(p_items) > 50 then
-    raise exception 'Quantidade de itens inválida.';
+
+  if coalesce(p_payment_method, 'PIX') not in ('PIX', 'Dinheiro', 'Cartão') then
+    raise exception 'Forma de pagamento inválida.';
+  end if;
+
+  if pg_catalog.jsonb_typeof(p_items) <> 'array'
+     or pg_catalog.jsonb_array_length(p_items) = 0
+     or pg_catalog.jsonb_array_length(p_items) > 50 then
+    raise exception 'Carrinho vazio ou quantidade de itens inválida.';
   end if;
 
   insert into public.orders (
     customer_name, customer_phone, delivery_method, delivery_address,
     payment_method, status, subtotal
   ) values (
-    trim(p_customer_name), v_phone, p_delivery_method,
-    case when p_delivery_method = 'delivery' then trim(p_delivery_address) else null end,
-    coalesce(nullif(trim(p_payment_method), ''), 'PIX'), 'pending', 0
+    pg_catalog.btrim(p_customer_name), v_phone, p_delivery_method,
+    case when p_delivery_method = 'delivery' then pg_catalog.btrim(p_delivery_address) else null end,
+    coalesce(nullif(pg_catalog.btrim(p_payment_method), ''), 'PIX'), 'pending', 0
   ) returning id into v_order_id;
 
   for v_item in
     select product_id, quantity
-    from jsonb_to_recordset(p_items) as x(product_id uuid, quantity integer)
+    from pg_catalog.jsonb_to_recordset(p_items) as x(product_id uuid, quantity integer)
   loop
-    if v_item.quantity is null or v_item.quantity < 1 or v_item.quantity > 99 then
-      raise exception 'Quantidade inválida.';
+    if v_item.product_id is null or v_item.quantity is null
+       or v_item.quantity < 1 or v_item.quantity > 99 then
+      raise exception 'Item ou quantidade inválida.';
     end if;
 
     select * into v_product
@@ -212,7 +227,7 @@ begin
     end if;
 
     update public.products
-    set stock = stock - v_item.quantity, updated_at = now()
+    set stock = stock - v_item.quantity, updated_at = pg_catalog.now()
     where id = v_product.id;
 
     insert into public.order_items (
@@ -224,12 +239,36 @@ begin
     v_subtotal := v_subtotal + (v_product.price * v_item.quantity);
   end loop;
 
-  update public.orders set subtotal = v_subtotal, updated_at = now()
+  update public.orders set subtotal = v_subtotal, updated_at = pg_catalog.now()
   where id = v_order_id;
 
   return v_order_id;
 end;
-$$;
+$function$;
+
+-- A implementação não pode ser chamada diretamente por roles da API.
+revoke all on function private.create_guest_order(text, text, text, text, jsonb, text) from public, anon, authenticated;
+revoke usage on schema private from public, anon, authenticated;
+
+-- Entrada RPC necessária para o checkout de visitantes.
+create or replace function public.create_guest_order(
+  p_customer_name text,
+  p_customer_phone text,
+  p_delivery_method text,
+  p_delivery_address text,
+  p_items jsonb,
+  p_payment_method text default 'PIX'
+)
+returns uuid
+language sql
+security definer
+set search_path = ''
+as $function$
+  select private.create_guest_order(
+    p_customer_name, p_customer_phone, p_delivery_method,
+    p_delivery_address, p_items, p_payment_method
+  );
+$function$;
 
 revoke all on function public.create_guest_order(text, text, text, text, jsonb, text) from public;
 grant execute on function public.create_guest_order(text, text, text, text, jsonb, text) to anon, authenticated;
