@@ -1,7 +1,8 @@
 {
   "name": "Adega Premium",
   "short_name": "Adega",
-  "start_url": "/",
+  "start_url": "/adega-premium/",
+  "scope": "/adega-premium/",
   "display": "standalone",
   "background_color": "#101010",
   "theme_color": "#111111",
