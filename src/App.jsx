@@ -53,11 +53,25 @@ function StoreApp(){
   const count = cart.reduce((n,item)=>n+item.qty,0);
   const total = cart.reduce((n,item)=>n+item.qty*item.price,0);
   function add(product){
+    const current=cart.find(i=>i.id===product.id);
+    if(liveCatalog && current && current.qty>=product.stock){
+      setNotice("Estoque disponível: "+product.stock+" unidade(s).");
+      return;
+    }
     setCart(old=>old.some(i=>i.id===product.id)?old.map(i=>i.id===product.id?{...i,qty:i.qty+1}:i):[...old,{...product,qty:1}]);
     setNotice(product.name+" adicionado ao carrinho");
     setTimeout(()=>setNotice(""),2200);
   }
-  function changeQty(id,delta){setCart(old=>old.map(i=>i.id===id?{...i,qty:i.qty+delta}:i).filter(i=>i.qty>0));}
+  function changeQty(id,delta){
+    setCart(old=>old.map(i=>{
+      if(i.id!==id)return i;
+      if(liveCatalog && delta>0 && i.qty>=i.stock){
+        setNotice("Estoque disponível: "+i.stock+" unidade(s).");
+        return i;
+      }
+      return {...i,qty:i.qty+delta};
+    }).filter(i=>i.qty>0));
+  }
   async function checkout(){
     if(!cart.length)return;
     if(customerName.trim().length<2 || customerPhone.replace(/\D/g,"").length<10){setNotice("Informe nome e telefone com DDD.");return;}
