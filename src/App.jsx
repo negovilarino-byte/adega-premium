@@ -43,8 +43,7 @@ export default function App(){
   function changeQty(id,delta){setCart(old=>old.map(i=>i.id===id?{...i,qty:i.qty+delta}:i).filter(i=>i.qty>0));}
   function checkout(){
     if(!cart.length)return;
-    const lines=cart.map(i=>`• ${i.qty}x ${i.name} — ${money(i.qty*i.price)}`).join("
-");
+    const lines=cart.map(i=>`• ${i.qty}x ${i.name} — ${money(i.qty*i.price)}`).join("\n");
     const message=`Olá! Quero fazer um pedido na Adega Império Sul.
 
 ${lines}
