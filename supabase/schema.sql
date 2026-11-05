@@ -261,7 +261,7 @@ create or replace function public.create_guest_order(
 )
 returns uuid
 language sql
-security definer
+security invoker
 set search_path = ''
 as $function$
   select private.create_guest_order(
