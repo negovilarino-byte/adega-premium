@@ -1,7 +1,8 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { supabase } from "./lib/supabase.js";
 
 const categories = ["Todas", "Cervejas", "Whisky", "Vodka", "Energéticos"];
-const products = [
+const demoProducts = [
   {id:1,name:"Cerveja Lager",category:"Cervejas",detail:"Long neck • 330 ml",price:6.9,tag:"Mais pedido",emoji:"🍺"},
   {id:2,name:"Whisky Premium",category:"Whisky",detail:"Garrafa • 1 L",price:129.9,tag:"Oferta",emoji:"🥃"},
   {id:3,name:"Vodka Clássica",category:"Vodka",detail:"Garrafa • 1 L",price:59.9,tag:"",emoji:"🍸"},
@@ -14,6 +15,9 @@ const WHATSAPP_NUMBER = "5549999084921";
 
 export default function App(){
   const [category,setCategory] = useState("Todas");
+  const [products,setProducts] = useState(demoProducts);
+  const [liveCatalog,setLiveCatalog] = useState(false);
+  useEffect(()=>{\n    if(!supabase)return;\n    let active=true;\n    supabase.from("products").select("id,name,description,volume,price,image_url,stock,categories(name)").eq("active",true).order("name").then(({data,error})=>{\n      if(!active||error||!data?.length)return;\n      const loaded=data.map(p=>({id:p.id,name:p.name,category:p.categories?.name||"Outros",detail:[p.description,p.volume].filter(Boolean).join(" • "),price:Number(p.price),tag:"",emoji:"🍾",image:p.image_url,stock:p.stock}));\n      setProducts(loaded);setLiveCatalog(true);\n    });\n    return ()=>{active=false};\n  },[]);
   const [cart,setCart] = useState([]);
   const [cartOpen,setCartOpen] = useState(false);
   const [fulfillment,setFulfillment] = useState("Entrega");
@@ -40,7 +44,7 @@ export default function App(){
     <main>
       <section className="hero"><div className="hero-copy"><p className="eyebrow">SEU BRINDE COMEÇA AQUI</p><h1>Qualidade que<br/><span>faz a diferença.</span></h1><p>Bebidas selecionadas, ofertas especiais e praticidade para o seu momento.</p><a className="primary" href="#catalogo">EXPLORAR PRODUTOS <span>↗</span></a></div><div className="mascot" aria-label="Espaço reservado para o mascote oficial bulldog"><span>🐶</span><small>MASCOTE OFICIAL<br/>BULLDOG</small></div><div className="hero-stamp">SELEÇÃO<br/><b>IMPÉRIO SUL</b></div></section>
       <section className="benefits"><div>✦ <span>Seleção especial</span></div><div>⌁ <span>Entrega ou retirada</span></div><div>◈ <span>Pedido fácil pelo WhatsApp</span></div></section>
-      <section className="section" id="catalogo"><div className="section-heading"><div><p className="eyebrow">ESCOLHA O SEU</p><h2>Nossas categorias</h2></div><span className="muted">Produtos demonstrativos</span></div>
+      <section className="section" id="catalogo"><div className="section-heading"><div><p className="eyebrow">ESCOLHA O SEU</p><h2>Nossas categorias</h2></div><span className="muted">{liveCatalog?"Catálogo conectado":"Produtos demonstrativos"}</span></div>
         <div className="category-list">{categories.map(c=><button key={c} className={category===c?"category active":"category"} onClick={()=>setCategory(c)}>{c}</button>)}</div>
         <div className="product-grid">{visible.map(p=><article className="product-card" key={p.id}><div className="product-art"><span>{p.emoji}</span>{p.tag&&<b>{p.tag}</b>}</div><div className="product-info"><small>{p.category}</small><h3>{p.name}</h3><p>{p.detail}</p><div className="product-bottom"><strong>{money(p.price)}</strong><button aria-label={"Adicionar "+p.name} onClick={()=>add(p)}>+</button></div></div></article>)}</div>
       </section>
