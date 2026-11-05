@@ -164,7 +164,7 @@ begin
     raise exception 'Informe o nome do cliente.';
   end if;
 
-  v_phone := regexp_replace(coalesce(p_customer_phone, ''), '\\D', '', 'g');
+  v_phone := regexp_replace(coalesce(p_customer_phone, ''), '[^0-9]', '', 'g');
   if length(v_phone) < 10 or length(v_phone) > 13 then
     raise exception 'Informe um telefone válido com DDD.';
   end if;
