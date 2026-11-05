@@ -18,8 +18,9 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-      VITE_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+      # Public client configuration: publishable key is designed for browser use.
+      VITE_SUPABASE_URL: https://ktigidfbwspziqoseyxs.supabase.co
+      VITE_SUPABASE_ANON_KEY: sb_publishable_A3UCqUBTpJ8nX0Tbxti3qQ_npv7Qee8
     steps:
       - name: Baixar código
         uses: actions/checkout@v4
