@@ -1,10 +1,10 @@
 {
-  "name": "Adega Premium",
-  "short_name": "Adega",
+  "name": "Adega Império Sul",
+  "short_name": "Império Sul",
   "start_url": "/adega-premium/",
   "scope": "/adega-premium/",
   "display": "standalone",
   "background_color": "#101010",
   "theme_color": "#111111",
-  "description": "Bebidas, ofertas e conveniência."
+  "description": "Adega Império Sul — bebidas, ofertas e conveniência."
 }
