@@ -10,7 +10,7 @@ const products = [
   {id:6,name:"Vodka Especial",category:"Vodka",detail:"Garrafa • 750 ml",price:79.9,tag:"Novidade",emoji:"🍸"}
 ];
 const money = value => value.toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
-const WHATSAPP_NUMBER = "554999084921";
+const WHATSAPP_NUMBER = "5549999084921";
 
 export default function App(){
   const [category,setCategory] = useState("Todas");
